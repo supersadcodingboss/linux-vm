@@ -4,46 +4,39 @@
     <meta charset="utf-8">
     <title>Linux VM in Browser</title>
     <style>
-        body {
-            margin: 0;
-            background: black;
-        }
-        #screen {
-            width: 100vw;
-            height: 100vh;
-            display: block;
-        }
-        #loading {
-            color: white;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin-top: 20px;
-        }
+        body { margin: 0; background: black; }
+        #screen { width: 100vw; height: 100vh; display: block; }
+        #loading { color: white; font-family: Arial, sans-serif; text-align: center; margin-top: 20px; }
     </style>
 </head>
 <body>
+    <canvas id="screen"></canvas>
+    <div id="loading">Loading Linux VM… please wait</div>
 
-<canvas id="screen"></canvas>
-<div id="loading">Loading Linux VM… please wait</div>
-
-<script src="libv86.js"></script>
-
-<script>
-    const emulator = new V86({
-        wasm_path: "v86.wasm",
-        screen_container: document.getElementById("screen"),
-        memory_size: 256 * 1024 * 1024,
-        vga_memory_size: 8 * 1024 * 1024,
-        cdrom: {
-            url: "images/tinycore.iso"
-        },
-        autostart: true
-    });
-
-    emulator.add_listener("running", () => {
-        document.getElementById("loading").style.display = "none";
-    });
-</script>
-
+    <script src="libv86.js"></script>
+    <script>
+        // Workaround: load WASM manually to avoid GitHub Pages MIME issues
+        fetch("v86.wasm")
+            .then(response => response.arrayBuffer())
+            .then(bytes => WebAssembly.instantiate(bytes, {}))
+            .then(results => {
+                const instance = results.instance;
+                const emulator = new V86({
+                    wasm: instance,
+                    screen_container: document.getElementById("screen"),
+                    memory_size: 256 * 1024 * 1024,
+                    vga_memory_size: 8 * 1024 * 1024,
+                    cdrom: { url: "images/tinycore.iso" },
+                    autostart: true
+                });
+                emulator.add_listener("running", () => {
+                    document.getElementById("loading").style.display = "none";
+                });
+            })
+            .catch(err => {
+                document.getElementById("loading").textContent = "Failed to load VM: " + err;
+                console.error("WASM load error:", err);
+            });
+    </script>
 </body>
 </html>
